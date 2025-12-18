@@ -84,6 +84,10 @@ class GitLabClient:
         """
         Get all child epics of a parent epic.
 
+        NOTE: This method relies on GitLab's parent_id filter, which may not work
+        correctly in some GitLab versions. Consider using get_all_group_epics()
+        and filtering in-memory instead.
+
         Args:
             group_id: Group ID
             parent_epic_id: Parent epic's internal ID (not IID)
@@ -105,6 +109,62 @@ class GitLabClient:
         except Exception as e:
             logger.warning(f"Could not fetch child epics: {e}")
             return []
+
+    def get_all_group_epics(self, group_id: int) -> List[Dict]:
+        """
+        Get ALL epics in a group without filtering.
+
+        This method fetches all epics from a group regardless of parent relationships,
+        which is more reliable than using parent_id filters. The parent-child
+        relationships can be built in-memory using the parent_epic_id field.
+
+        Args:
+            group_id: Group ID
+
+        Returns:
+            List of all epic dictionaries in the group
+        """
+        logger.debug(f"Fetching all epics for group {group_id}")
+
+        try:
+            group = self.gl.groups.get(group_id)
+            # Fetch all epics WITHOUT parent_id filter
+            all_epics = group.epics.list(get_all=True)
+
+            time.sleep(self.rate_limit_delay)
+
+            epics = [self._epic_to_dict(epic, group_id) for epic in all_epics]
+            logger.info(f"Fetched {len(epics)} epics from group {group_id}")
+
+            return epics
+
+        except Exception as e:
+            logger.warning(f"Could not fetch group epics: {e}")
+            return []
+
+    def get_all_epics_for_groups(self, group_ids: List[int]) -> List[Dict]:
+        """
+        Get ALL epics across multiple groups.
+
+        This is the recommended method for building epic hierarchies that span
+        multiple groups, as it's more reliable than using parent_id filters.
+
+        Args:
+            group_ids: List of group IDs
+
+        Returns:
+            List of all epic dictionaries across all groups
+        """
+        all_epics = []
+
+        logger.info(f"Fetching epics from {len(group_ids)} groups")
+
+        for group_id in group_ids:
+            epics = self.get_all_group_epics(group_id)
+            all_epics.extend(epics)
+
+        logger.info(f"Fetched total of {len(all_epics)} epics from all groups")
+        return all_epics
 
     def get_epic_issues(self, group_id: int, epic_iid: int) -> List[Dict]:
         """

@@ -42,7 +42,7 @@ def cli():
 @click.option('--batch-size', type=int, default=50, help='Batch size for API requests')
 @click.option('--verbose', is_flag=True, help='Verbose output')
 def extract(group_id, epic_iid, db_path, gitlab_url, token, snapshot_date, include_closed, max_depth, batch_size, verbose):
-    """Extract hierarchy from a root epic."""
+    """Extract hierarchy from a root epic (uses GitLab API parent_id filtering)."""
     setup_logging(verbose)
 
     if not token:
@@ -64,6 +64,83 @@ def extract(group_id, epic_iid, db_path, gitlab_url, token, snapshot_date, inclu
         result = extractor.extract(
             group_id=group_id,
             epic_iid=epic_iid,
+            snapshot_date=snapshot_date,
+            include_closed=include_closed,
+            max_depth=max_depth,
+            verbose=verbose
+        )
+
+        extractor.close()
+
+        if result['success']:
+            click.echo("\n✓ Extraction completed successfully!")
+            sys.exit(0)
+        else:
+            click.echo("\n✗ Extraction failed", err=True)
+            sys.exit(1)
+
+    except Exception as e:
+        click.echo(f"\n✗ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--group-ids', required=True, help='Comma-separated list of group IDs to fetch epics from')
+@click.option('--root-group-id', type=int, required=True, help='Group ID containing the root epic')
+@click.option('--epic-iid', type=int, required=True, help='Epic IID of the root epic')
+@click.option('--db', 'db_path', default='hierarchy.db', help='SQLite database path')
+@click.option('--gitlab-url', default='https://gitlab.com', help='GitLab instance URL')
+@click.option('--token', default=lambda: os.getenv('GITLAB_TOKEN'), help='GitLab personal access token')
+@click.option('--snapshot-date', type=click.DateTime(formats=['%Y-%m-%d']), help='Snapshot date (default: today)')
+@click.option('--include-closed/--no-include-closed', default=True, help='Include closed items')
+@click.option('--max-depth', type=int, default=20, help='Maximum hierarchy depth')
+@click.option('--verbose', is_flag=True, help='Verbose output')
+def extract_from_groups(group_ids, root_group_id, epic_iid, db_path, gitlab_url, token, snapshot_date, include_closed, max_depth, verbose):
+    """
+    Extract hierarchy using in-memory method (recommended).
+
+    This command fetches all epics from the specified groups upfront and builds
+    the hierarchy in-memory using parent_epic_id relationships. This is more
+    reliable than the standard extract command when GitLab's parent_id filter
+    doesn't work correctly.
+
+    Example:
+        gitlab-hierarchy extract-from-groups --group-ids "123,456,789" --root-group-id 123 --epic-iid 1
+    """
+    setup_logging(verbose)
+
+    if not token:
+        click.echo("Error: GitLab token required. Set GITLAB_TOKEN environment variable or use --token", err=True)
+        sys.exit(1)
+
+    # Parse group IDs
+    try:
+        group_id_list = [int(gid.strip()) for gid in group_ids.split(',')]
+    except ValueError:
+        click.echo("Error: Invalid group IDs format. Use comma-separated integers (e.g., '123,456,789')", err=True)
+        sys.exit(1)
+
+    # Ensure root_group_id is in the list
+    if root_group_id not in group_id_list:
+        click.echo(f"Warning: root-group-id {root_group_id} not in group-ids list. Adding it automatically.")
+        group_id_list.append(root_group_id)
+
+    # Convert snapshot_date if provided
+    if snapshot_date:
+        snapshot_date = snapshot_date.date()
+
+    try:
+        extractor = HierarchyExtractor(
+            gitlab_url=gitlab_url,
+            token=token,
+            db_path=db_path,
+            rate_limit_delay=0.5
+        )
+
+        result = extractor.extract_from_groups(
+            group_ids=group_id_list,
+            root_group_id=root_group_id,
+            root_epic_iid=epic_iid,
             snapshot_date=snapshot_date,
             include_closed=include_closed,
             max_depth=max_depth,

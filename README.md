@@ -5,6 +5,8 @@ A production-ready Python tool that traverses GitLab epic hierarchies starting f
 ## Features
 
 - ✅ **Complete Hierarchy Extraction**: Recursively traverse epics → child epics → issues
+- ✅ **Reliable In-Memory Method**: Fetch all epics upfront, build hierarchy from parent_id (recommended)
+- ✅ **Multi-Group Support**: Handle epic hierarchies spanning multiple GitLab groups
 - ✅ **Comprehensive Data Capture**: All epic and issue attributes from GitLab API
 - ✅ **Smart Label Parsing**: Auto-detect and normalize labels into columns
 - ✅ **Relationship Tracking**: Parent-child, blocking, and related links
@@ -37,7 +39,17 @@ pip install -r requirements.txt
 export GITLAB_TOKEN="your_gitlab_token_here"
 ```
 
-### 2. Extract Hierarchy
+### 2. Extract Hierarchy (Recommended Method)
+
+```bash
+neo extract-from-groups \
+  --group-ids "123,456" \
+  --root-group-id 123 \
+  --epic-iid 10 \
+  --db hierarchy.db
+```
+
+Or use the legacy method:
 
 ```bash
 neo extract \
@@ -63,9 +75,52 @@ neo export \
 
 ## Usage
 
-### Extract Command
+### Extract from Groups Command (Recommended)
 
-Extract complete hierarchy from a root epic:
+**NEW**: Extract hierarchy using reliable in-memory method that fetches all epics upfront:
+
+```bash
+# Basic usage - single group
+neo extract-from-groups \
+  --group-ids "123" \
+  --root-group-id 123 \
+  --epic-iid 10
+
+# Multi-group hierarchy
+neo extract-from-groups \
+  --group-ids "123,456,789" \
+  --root-group-id 123 \
+  --epic-iid 10 \
+  --db hierarchy.db \
+  --gitlab-url https://gitlab.company.com \
+  --verbose
+```
+
+**Why use this command?**
+- ✅ More reliable - doesn't depend on GitLab's parent_id filter (which may not work correctly)
+- ✅ Better for multi-group hierarchies
+- ✅ Fewer API calls
+- ✅ Easier to debug
+
+**Options:**
+- `--group-ids`: Comma-separated list of group IDs to fetch epics from (required)
+- `--root-group-id`: Group ID containing the root epic (required)
+- `--epic-iid`: Root epic IID (required)
+- `--db`: SQLite database path (default: `hierarchy.db`)
+- `--gitlab-url`: GitLab instance URL (default: `https://gitlab.com`)
+- `--token`: GitLab token (or set `GITLAB_TOKEN` env var)
+- `--snapshot-date`: Snapshot date in YYYY-MM-DD format (default: today)
+- `--include-closed/--no-include-closed`: Include closed items (default: yes)
+- `--max-depth`: Maximum hierarchy depth (default: 20)
+- `--verbose`: Show progress bars and debug info
+
+📖 **See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed comparison and migration instructions**
+
+### Extract Command (Legacy)
+
+Extract complete hierarchy from a root epic using GitLab's API filtering:
+
+> ⚠️ **Note**: This command relies on GitLab's `parent_id` filter which may not work correctly in some GitLab versions. Consider using `extract-from-groups` instead.
 
 ```bash
 # Basic usage
@@ -87,13 +142,7 @@ neo extract \
 **Options:**
 - `--group-id`: Group ID where root epic exists (required)
 - `--epic-iid`: Epic IID (required)
-- `--db`: SQLite database path (default: `hierarchy.db`)
-- `--gitlab-url`: GitLab instance URL (default: `https://gitlab.com`)
-- `--token`: GitLab token (or set `GITLAB_TOKEN` env var)
-- `--snapshot-date`: Snapshot date in YYYY-MM-DD format (default: today)
-- `--include-closed/--no-include-closed`: Include closed items (default: yes)
-- `--max-depth`: Maximum hierarchy depth (default: 20)
-- `--verbose`: Show progress bars and debug info
+- Other options same as `extract-from-groups`
 
 ### Stats Command
 
