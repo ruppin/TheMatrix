@@ -368,7 +368,7 @@ Extractor (extractor.py)
 
 ### Basic Extraction
 ```bash
-gitlab-hierarchy extract \
+neo extract \
     --group-id 123 \
     --epic-iid 10 \
     --gitlab-url https://gitlab.example.com \
@@ -377,12 +377,12 @@ gitlab-hierarchy extract \
 
 ### Query Statistics
 ```bash
-gitlab-hierarchy stats --db hierarchy.db
+neo stats --db hierarchy.db
 ```
 
 ### Export to CSV
 ```bash
-gitlab-hierarchy export \
+neo export \
     --db hierarchy.db \
     --format csv \
     --output data.csv
@@ -390,7 +390,7 @@ gitlab-hierarchy export \
 
 ### Custom SQL Query
 ```bash
-gitlab-hierarchy query --db hierarchy.db \
+neo query --db hierarchy.db \
     "SELECT id, title, state FROM gitlab_hierarchy WHERE label_priority = 'high'"
 ```
 
@@ -449,7 +449,7 @@ ORDER BY completion_pct DESC;
 1. ✅ **Install and Test**
    ```bash
    pip install -e .
-   gitlab-hierarchy --help
+   neo --help
    ```
 
 2. ✅ **Run Tests**

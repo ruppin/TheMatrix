@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS gitlab_hierarchy (
     -- Additional Metadata
     has_tasks INTEGER DEFAULT 0,
     task_completion_status TEXT,
-    references TEXT,
+    reference_links TEXT,
     moved_to_id INTEGER,
     duplicated_to_id INTEGER,
     closed_by TEXT,

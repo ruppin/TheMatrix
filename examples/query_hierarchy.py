@@ -264,7 +264,7 @@ def main():
     print("Query examples complete!")
     print()
     print("You can also run custom queries using:")
-    print(f'  gitlab-hierarchy query --db {DB_PATH} "YOUR SQL HERE"')
+    print(f'  neo query --db {DB_PATH} "YOUR SQL HERE"')
     print()
 
 

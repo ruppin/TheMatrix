@@ -40,7 +40,7 @@ export GITLAB_TOKEN="your_gitlab_token_here"
 ### 2. Extract Hierarchy
 
 ```bash
-gitlab-hierarchy extract \
+neo extract \
   --group-id 123 \
   --epic-iid 10 \
   --db hierarchy.db
@@ -49,13 +49,13 @@ gitlab-hierarchy extract \
 ### 3. View Statistics
 
 ```bash
-gitlab-hierarchy stats --db hierarchy.db
+neo stats --db hierarchy.db
 ```
 
 ### 4. Export to CSV
 
 ```bash
-gitlab-hierarchy export \
+neo export \
   --db hierarchy.db \
   --format csv \
   --output results.csv
@@ -69,10 +69,10 @@ Extract complete hierarchy from a root epic:
 
 ```bash
 # Basic usage
-gitlab-hierarchy extract --group-id 123 --epic-iid 10
+neo extract --group-id 123 --epic-iid 10
 
 # With all options
-gitlab-hierarchy extract \
+neo extract \
   --group-id 123 \
   --epic-iid 10 \
   --db hierarchy.db \
@@ -101,10 +101,10 @@ Show database statistics:
 
 ```bash
 # Overall stats
-gitlab-hierarchy stats --db hierarchy.db
+neo stats --db hierarchy.db
 
 # Stats for specific root epic
-gitlab-hierarchy stats --db hierarchy.db --root-id "epic:123#10"
+neo stats --db hierarchy.db --root-id "epic:123#10"
 ```
 
 ### Export Command
@@ -113,10 +113,10 @@ Export data to CSV or JSON:
 
 ```bash
 # Export all data to CSV
-gitlab-hierarchy export --db hierarchy.db --format csv --output data.csv
+neo export --db hierarchy.db --format csv --output data.csv
 
 # Export specific root to JSON
-gitlab-hierarchy export \
+neo export \
   --db hierarchy.db \
   --format json \
   --output data.json \
@@ -129,7 +129,7 @@ Remove old snapshots:
 
 ```bash
 # Keep only last 90 days
-gitlab-hierarchy cleanup --db hierarchy.db --keep-days 90
+neo cleanup --db hierarchy.db --keep-days 90
 ```
 
 ### Query Command
@@ -137,7 +137,7 @@ gitlab-hierarchy cleanup --db hierarchy.db --keep-days 90
 Execute custom SQL queries:
 
 ```bash
-gitlab-hierarchy query --db hierarchy.db --sql "SELECT COUNT(*) FROM gitlab_hierarchy WHERE state='opened'"
+neo query --db hierarchy.db --sql "SELECT COUNT(*) FROM gitlab_hierarchy WHERE state='opened'"
 ```
 
 ## Database Schema

@@ -27,8 +27,8 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 ```bash
 # Fork the repository on GitHub/GitLab first, then:
-git clone https://github.com/yourusername/gitlab-hierarchy-extractor.git
-cd gitlab-hierarchy-extractor
+git clone https://github.com/yourusername/neo-extractor.git
+cd neo-extractor
 ```
 
 2. **Create Virtual Environment**
@@ -399,7 +399,7 @@ Extraction fails when epic has circular parent reference
 ## Steps to Reproduce
 1. Create epic A with parent epic B
 2. Create epic B with parent epic A
-3. Run: `gitlab-hierarchy extract --group-id 123 --epic-iid 1`
+3. Run: `neo extract --group-id 123 --epic-iid 1`
 
 ## Expected Behavior
 Should detect cycle and skip or warn
@@ -410,7 +410,7 @@ Infinite loop until max depth reached
 ## Environment
 - OS: Ubuntu 20.04
 - Python: 3.9.7
-- gitlab-hierarchy: 1.0.0
+- neo: 1.0.0
 
 ## Logs
 ```

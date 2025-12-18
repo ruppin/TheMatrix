@@ -34,7 +34,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "gitlab-hierarchy=gitlab_hierarchy.cli:cli",
+            "neo=gitlab_hierarchy.cli:cli",
         ],
     },
 )

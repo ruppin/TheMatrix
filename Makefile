@@ -185,21 +185,21 @@ db-stats:
 		echo "Error: hierarchy.db not found"; \
 		exit 1; \
 	fi
-	gitlab-hierarchy stats --db hierarchy.db
+	neo stats --db hierarchy.db
 
 db-cleanup:
 	@if [ ! -f hierarchy.db ]; then \
 		echo "Error: hierarchy.db not found"; \
 		exit 1; \
 	fi
-	gitlab-hierarchy cleanup --db hierarchy.db --keep-days 30
+	neo cleanup --db hierarchy.db --keep-days 30
 
 db-export:
 	@if [ ! -f hierarchy.db ]; then \
 		echo "Error: hierarchy.db not found"; \
 		exit 1; \
 	fi
-	gitlab-hierarchy export --db hierarchy.db --format csv --output hierarchy.csv
+	neo export --db hierarchy.db --format csv --output hierarchy.csv
 	@echo "Exported to hierarchy.csv"
 
 # Version management
@@ -220,14 +220,14 @@ git-clean:
 
 # Docker targets (if Docker support is added)
 docker-build:
-	docker build -t gitlab-hierarchy-extractor .
+	docker build -t neo-extractor .
 
 docker-run:
 	docker run --rm -it \
 		-e GITLAB_TOKEN=$${GITLAB_TOKEN} \
 		-e GITLAB_URL=$${GITLAB_URL} \
 		-v $$(pwd)/data:/data \
-		gitlab-hierarchy-extractor
+		neo-extractor
 
 # Help for common issues
 troubleshoot:

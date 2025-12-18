@@ -84,9 +84,9 @@ def main():
         print(f"Data saved to: {DB_PATH}")
         print()
         print("Next steps:")
-        print(f"  - View stats:   gitlab-hierarchy stats --db {DB_PATH}")
-        print(f"  - Export CSV:   gitlab-hierarchy export --db {DB_PATH} --format csv --output data.csv")
-        print(f"  - Run queries:  gitlab-hierarchy query --db {DB_PATH} \"SELECT * FROM gitlab_hierarchy LIMIT 10\"")
+        print(f"  - View stats:   neo stats --db {DB_PATH}")
+        print(f"  - Export CSV:   neo export --db {DB_PATH} --format csv --output data.csv")
+        print(f"  - Run queries:  neo query --db {DB_PATH} \"SELECT * FROM gitlab_hierarchy LIMIT 10\"")
 
 
 if __name__ == '__main__':
