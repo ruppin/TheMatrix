@@ -4,7 +4,7 @@ Hierarchy tree traversal and relationship building logic.
 
 import logging
 from typing import Dict, List, Set, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +242,7 @@ class HierarchyBuilder:
         """Calculate derived metrics for all items."""
         logger.info("Calculating metrics...")
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for item in self.all_items:
             # Parse dates
