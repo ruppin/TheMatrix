@@ -73,8 +73,13 @@ class Database:
             if field in item and isinstance(item[field], (list, dict)):
                 item[field] = json.dumps(item[field])
 
+        # Remove fields that are not in the database schema
+        # internal_id is only used during traversal, not stored
+        fields_to_exclude = ['internal_id']
+        item_filtered = {k: v for k, v in item.items() if k not in fields_to_exclude}
+
         # Build INSERT statement
-        columns = list(item.keys())
+        columns = list(item_filtered.keys())
         placeholders = ','.join(['?' for _ in columns])
         column_names = ','.join(columns)
 
@@ -84,7 +89,7 @@ class Database:
         """
 
         cursor = self.conn.cursor()
-        cursor.execute(sql, [item[col] for col in columns])
+        cursor.execute(sql, [item_filtered[col] for col in columns])
         self.conn.commit()
 
         logger.debug(f"Inserted item: {item.get('id')}")
