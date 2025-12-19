@@ -219,24 +219,7 @@ class GitLabClient:
 
             time.sleep(self.rate_limit_delay)
 
-            issue_list = []
-            for issue in issues:
-                issue_dict = self._issue_to_dict(issue)
-
-                # Add epic information if available
-                epic_info = getattr(issue, 'epic', None)
-                if epic_info:
-                    issue_dict['epic_id'] = getattr(epic_info, 'id', None)
-                    issue_dict['epic_iid'] = getattr(epic_info, 'iid', None)
-                    issue_dict['epic_group_id'] = getattr(epic_info, 'group_id', None)
-                    issue_dict['epic_title'] = getattr(epic_info, 'title', None)
-                else:
-                    issue_dict['epic_id'] = None
-                    issue_dict['epic_iid'] = None
-                    issue_dict['epic_group_id'] = None
-                    issue_dict['epic_title'] = None
-
-                issue_list.append(issue_dict)
+            issue_list = [self._issue_to_dict(issue) for issue in issues]
 
             logger.info(f"Fetched {len(issue_list)} issues from project {project_id}")
             return issue_list
@@ -427,6 +410,9 @@ class GitLabClient:
 
     def _issue_to_dict(self, issue) -> Dict:
         """Convert GitLab issue object to dictionary."""
+        # Extract epic information if available
+        epic_info = getattr(issue, 'epic', None)
+
         return {
             'type': 'issue',
             'id': f"issue:{issue.project_id}#{issue.iid}",
@@ -462,4 +448,9 @@ class GitLabClient:
             'merge_requests_count': getattr(issue, 'merge_requests_count', 0),
             'has_tasks': getattr(issue, 'has_tasks', False),
             'task_completion_status': getattr(getattr(issue, 'task_completion_status', None), 'completed_count', 0) if hasattr(issue, 'task_completion_status') and issue.task_completion_status else None,
+            # Epic relationship fields
+            'epic_id': getattr(epic_info, 'id', None) if epic_info else None,
+            'epic_iid': getattr(epic_info, 'iid', None) if epic_info else None,
+            'epic_group_id': getattr(epic_info, 'group_id', None) if epic_info else None,
+            'epic_title': getattr(epic_info, 'title', None) if epic_info else None,
         }
