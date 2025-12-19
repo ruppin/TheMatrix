@@ -163,3 +163,108 @@ class Issue(HierarchyItem):
 
     def __init__(self, iid, project_id, **kwargs):
         super().__init__('issue', iid, project_id=project_id, **kwargs)
+
+
+# Schema for project-based issue extraction
+PROJECT_ISSUES_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS gitlab_project_issues (
+    -- Identity Fields
+    id TEXT PRIMARY KEY,
+    iid INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    group_id INTEGER,
+    project_name TEXT,
+    project_path TEXT,
+    project_path_with_namespace TEXT,
+
+    -- Epic Linkage (if issue is linked to an epic)
+    epic_id INTEGER,
+    epic_iid INTEGER,
+    epic_group_id INTEGER,
+    epic_title TEXT,
+    epic_reference TEXT,
+
+    -- Core Attributes
+    title TEXT NOT NULL,
+    description TEXT,
+    state TEXT NOT NULL,
+    web_url TEXT,
+    author_username TEXT,
+    author_name TEXT,
+    assignee_username TEXT,
+    assignee_name TEXT,
+    milestone_title TEXT,
+    milestone_id INTEGER,
+
+    -- Issue-Specific Fields
+    issue_type TEXT,
+    confidential INTEGER DEFAULT 0,
+    discussion_locked INTEGER DEFAULT 0,
+    weight INTEGER,
+    story_points INTEGER,
+    time_estimate INTEGER,
+    time_spent INTEGER,
+    severity TEXT,
+
+    -- Labels (Normalized)
+    labels_raw TEXT,
+    label_priority TEXT,
+    label_type TEXT,
+    label_status TEXT,
+    label_team TEXT,
+    label_component TEXT,
+    label_custom_1 TEXT,
+    label_custom_2 TEXT,
+    label_custom_3 TEXT,
+
+    -- Dates & Time Tracking
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    closed_at TIMESTAMP,
+    due_date DATE,
+
+    -- Metrics & Derived Fields
+    days_open INTEGER,
+    days_to_close INTEGER,
+    is_overdue INTEGER DEFAULT 0,
+    days_overdue INTEGER,
+    comment_count INTEGER DEFAULT 0,
+    upvotes INTEGER DEFAULT 0,
+    downvotes INTEGER DEFAULT 0,
+    user_notes_count INTEGER DEFAULT 0,
+    merge_requests_count INTEGER DEFAULT 0,
+
+    -- Relationship Fields
+    has_epic INTEGER DEFAULT 0,
+    has_milestone INTEGER DEFAULT 0,
+    has_assignee INTEGER DEFAULT 0,
+    has_tasks INTEGER DEFAULT 0,
+    task_completion_status TEXT,
+
+    -- Snapshot & Versioning
+    snapshot_date DATE NOT NULL,
+    data_version INTEGER DEFAULT 1,
+    is_latest INTEGER DEFAULT 1,
+
+    -- Additional Metadata
+    reference_links TEXT,
+    moved_to_id INTEGER,
+    duplicated_to_id INTEGER,
+    closed_by TEXT
+);
+"""
+
+# Indexes for project_issues table
+PROJECT_ISSUES_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_pi_project_id ON gitlab_project_issues(project_id);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_group_id ON gitlab_project_issues(group_id);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_state ON gitlab_project_issues(state);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_epic_id ON gitlab_project_issues(epic_id);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_epic_iid ON gitlab_project_issues(epic_iid);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_has_epic ON gitlab_project_issues(has_epic);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_snapshot_date ON gitlab_project_issues(snapshot_date);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_assignee ON gitlab_project_issues(assignee_username);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_created_at ON gitlab_project_issues(created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_is_latest ON gitlab_project_issues(is_latest);",
+    "CREATE INDEX IF NOT EXISTS idx_pi_composite_query ON gitlab_project_issues(project_id, has_epic, state, is_latest);",
+]

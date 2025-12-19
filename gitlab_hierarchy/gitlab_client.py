@@ -80,36 +80,6 @@ class GitLabClient:
             logger.error("Epics not available (requires GitLab Premium/Ultimate)")
             raise ValueError("Epics are only available in GitLab Premium/Ultimate")
 
-    def get_child_epics(self, group_id: int, parent_epic_id: int) -> List[Dict]:
-        """
-        Get all child epics of a parent epic.
-
-        NOTE: This method relies on GitLab's parent_id filter, which may not work
-        correctly in some GitLab versions. Consider using get_all_group_epics()
-        and filtering in-memory instead.
-
-        Args:
-            group_id: Group ID
-            parent_epic_id: Parent epic's internal ID (not IID)
-
-        Returns:
-            List of child epic dictionaries
-        """
-        logger.debug(f"Fetching child epics for epic ID {parent_epic_id}")
-
-        try:
-            group = self.gl.groups.get(group_id)
-            # Query epics with parent_id filter
-            child_epics = group.epics.list(parent_id=parent_epic_id, get_all=True)
-
-            time.sleep(self.rate_limit_delay)
-
-            return [self._epic_to_dict(epic, group_id) for epic in child_epics]
-
-        except Exception as e:
-            logger.warning(f"Could not fetch child epics: {e}")
-            return []
-
     def get_all_group_epics(self, group_id: int) -> List[Dict]:
         """
         Get ALL epics in a group without filtering.
@@ -191,6 +161,125 @@ class GitLabClient:
         except Exception as e:
             logger.warning(f"Could not fetch epic issues: {e}")
             return []
+
+    def get_all_group_projects(self, group_id: int) -> List[Dict]:
+        """
+        Get all projects in a group.
+
+        Args:
+            group_id: Group ID
+
+        Returns:
+            List of project info dictionaries
+        """
+        logger.debug(f"Fetching all projects for group {group_id}")
+
+        try:
+            group = self.gl.groups.get(group_id)
+            # Fetch all projects including subgroups
+            projects = group.projects.list(get_all=True, include_subgroups=True)
+
+            time.sleep(self.rate_limit_delay)
+
+            project_list = [{
+                'id': project.id,
+                'name': project.name,
+                'path': project.path,
+                'path_with_namespace': project.path_with_namespace,
+                'group_id': group_id,
+                'web_url': project.web_url
+            } for project in projects]
+
+            logger.info(f"Fetched {len(project_list)} projects from group {group_id}")
+            return project_list
+
+        except Exception as e:
+            logger.warning(f"Could not fetch group projects: {e}")
+            return []
+
+    def get_all_project_issues(self, project_id: int) -> List[Dict]:
+        """
+        Get ALL issues from a project.
+
+        This method fetches all issues in a project, regardless of whether
+        they are linked to an epic. The issue's epic information is included
+        if available.
+
+        Args:
+            project_id: Project ID
+
+        Returns:
+            List of issue dictionaries
+        """
+        logger.debug(f"Fetching all issues for project {project_id}")
+
+        try:
+            project = self.gl.projects.get(project_id)
+            issues = project.issues.list(get_all=True)
+
+            time.sleep(self.rate_limit_delay)
+
+            issue_list = []
+            for issue in issues:
+                issue_dict = self._issue_to_dict(issue)
+
+                # Add epic information if available
+                epic_info = getattr(issue, 'epic', None)
+                if epic_info:
+                    issue_dict['epic_id'] = getattr(epic_info, 'id', None)
+                    issue_dict['epic_iid'] = getattr(epic_info, 'iid', None)
+                    issue_dict['epic_group_id'] = getattr(epic_info, 'group_id', None)
+                    issue_dict['epic_title'] = getattr(epic_info, 'title', None)
+                else:
+                    issue_dict['epic_id'] = None
+                    issue_dict['epic_iid'] = None
+                    issue_dict['epic_group_id'] = None
+                    issue_dict['epic_title'] = None
+
+                issue_list.append(issue_dict)
+
+            logger.info(f"Fetched {len(issue_list)} issues from project {project_id}")
+            return issue_list
+
+        except Exception as e:
+            logger.warning(f"Could not fetch project issues: {e}")
+            return []
+
+    def get_all_issues_for_groups(self, group_ids: List[int]) -> List[Dict]:
+        """
+        Get ALL issues from all projects in the specified groups.
+
+        This method:
+        1. Fetches all projects from the specified groups
+        2. Fetches all issues from each project
+        3. Includes epic linkage information if available
+
+        Args:
+            group_ids: List of group IDs
+
+        Returns:
+            List of all issue dictionaries with epic information
+        """
+        all_issues = []
+        all_projects = []
+
+        logger.info(f"Fetching all projects from {len(group_ids)} groups")
+
+        # Step 1: Get all projects from all groups
+        for group_id in group_ids:
+            projects = self.get_all_group_projects(group_id)
+            all_projects.extend(projects)
+
+        logger.info(f"Found {len(all_projects)} total projects")
+
+        # Step 2: Get all issues from all projects
+        logger.info(f"Fetching issues from {len(all_projects)} projects")
+        for project in all_projects:
+            issues = self.get_all_project_issues(project['id'])
+            all_issues.extend(issues)
+
+        logger.info(f"Fetched total of {len(all_issues)} issues from all projects")
+        return all_issues
 
     def get_issue(self, project_id: int, issue_iid: int) -> Optional[Dict]:
         """

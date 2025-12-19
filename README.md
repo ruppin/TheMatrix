@@ -4,9 +4,9 @@ A production-ready Python tool that traverses GitLab epic hierarchies starting f
 
 ## Features
 
-- ✅ **Complete Hierarchy Extraction**: Recursively traverse epics → child epics → issues
-- ✅ **Reliable In-Memory Method**: Fetch all epics upfront, build hierarchy from parent_id (recommended)
+- ✅ **Complete Hierarchy Extraction**: In-memory epic tree building from parent_epic_id relationships
 - ✅ **Multi-Group Support**: Handle epic hierarchies spanning multiple GitLab groups
+- ✅ **Project-Based Issue Extraction**: Fetch ALL issues including orphans (not linked to epics)
 - ✅ **Comprehensive Data Capture**: All epic and issue attributes from GitLab API
 - ✅ **Smart Label Parsing**: Auto-detect and normalize labels into columns
 - ✅ **Relationship Tracking**: Parent-child, blocking, and related links
@@ -39,21 +39,12 @@ pip install -r requirements.txt
 export GITLAB_TOKEN="your_gitlab_token_here"
 ```
 
-### 2. Extract Hierarchy (Recommended Method)
-
-```bash
-neo extract-from-groups \
-  --group-ids "123,456" \
-  --root-group-id 123 \
-  --epic-iid 10 \
-  --db hierarchy.db
-```
-
-Or use the legacy method:
+### 2. Extract Hierarchy
 
 ```bash
 neo extract \
-  --group-id 123 \
+  --group-ids "123,456" \
+  --root-group-id 123 \
   --epic-iid 10 \
   --db hierarchy.db
 ```
@@ -75,19 +66,19 @@ neo export \
 
 ## Usage
 
-### Extract from Groups Command (Recommended)
+### Extract Command
 
-**NEW**: Extract hierarchy using reliable in-memory method that fetches all epics upfront:
+Extract hierarchy using reliable in-memory method that fetches all epics upfront:
 
 ```bash
 # Basic usage - single group
-neo extract-from-groups \
+neo extract \
   --group-ids "123" \
   --root-group-id 123 \
   --epic-iid 10
 
 # Multi-group hierarchy
-neo extract-from-groups \
+neo extract \
   --group-ids "123,456,789" \
   --root-group-id 123 \
   --epic-iid 10 \
@@ -96,11 +87,11 @@ neo extract-from-groups \
   --verbose
 ```
 
-**Why use this command?**
-- ✅ More reliable - doesn't depend on GitLab's parent_id filter (which may not work correctly)
-- ✅ Better for multi-group hierarchies
-- ✅ Fewer API calls
-- ✅ Easier to debug
+**How it works:**
+- ✅ Fetches all epics upfront from specified groups
+- ✅ Builds hierarchy in-memory using parent_epic_id relationships
+- ✅ Supports multi-group hierarchies
+- ✅ Fewer API calls than recursive fetching
 
 **Options:**
 - `--group-ids`: Comma-separated list of group IDs to fetch epics from (required)
@@ -114,35 +105,68 @@ neo extract-from-groups \
 - `--max-depth`: Maximum hierarchy depth (default: 20)
 - `--verbose`: Show progress bars and debug info
 
-📖 **See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed comparison and migration instructions**
+### Extract Issues Command
 
-### Extract Command (Legacy)
-
-Extract complete hierarchy from a root epic using GitLab's API filtering:
-
-> ⚠️ **Note**: This command relies on GitLab's `parent_id` filter which may not work correctly in some GitLab versions. Consider using `extract-from-groups` instead.
+Extract ALL issues from all projects in groups, including orphan issues (not linked to epics):
 
 ```bash
 # Basic usage
-neo extract --group-id 123 --epic-iid 10
+neo extract-issues \
+  --group-ids "123,456"
 
 # With all options
-neo extract \
-  --group-id 123 \
-  --epic-iid 10 \
+neo extract-issues \
+  --group-ids "123,456,789" \
   --db hierarchy.db \
   --gitlab-url https://gitlab.company.com \
-  --token $GITLAB_TOKEN \
-  --snapshot-date 2024-01-15 \
-  --include-closed \
-  --max-depth 10 \
   --verbose
 ```
 
+**What it does:**
+- Fetches ALL issues from all projects in the specified groups
+- Includes issues that are NOT linked to any epic (orphan issues)
+- Stores results in `gitlab_project_issues` table (separate from epic hierarchy)
+- Includes epic linkage information for issues that are linked to epics
+
+**Use cases:**
+- Get a complete inventory of all issues in your groups
+- Identify orphan issues that need to be linked to epics
+- Analyze issues independently from the epic hierarchy
+- Find issues that might be missing from epic planning
+
 **Options:**
-- `--group-id`: Group ID where root epic exists (required)
-- `--epic-iid`: Epic IID (required)
-- Other options same as `extract-from-groups`
+- `--group-ids`: Comma-separated list of group IDs (required)
+- `--db`: SQLite database path (default: `hierarchy.db`)
+- `--gitlab-url`: GitLab instance URL (default: `https://gitlab.com`)
+- `--token`: GitLab token (or set `GITLAB_TOKEN` env var)
+- `--snapshot-date`: Snapshot date in YYYY-MM-DD format (default: today)
+- `--include-closed/--no-include-closed`: Include closed items (default: yes)
+- `--verbose`: Show progress bars and debug info
+
+**Database table:**
+- Issues are stored in the `gitlab_project_issues` table
+- Separate from the `gitlab_hierarchy` table used by epic-based extraction
+- Includes epic linkage fields: `epic_id`, `epic_iid`, `epic_group_id`, `epic_title`
+- Has `has_epic` flag to easily filter orphan vs. epic-linked issues
+
+**Query examples:**
+
+```sql
+-- Find all orphan issues (not linked to any epic)
+SELECT * FROM gitlab_project_issues WHERE has_epic = 0;
+
+-- Find all issues linked to a specific epic
+SELECT * FROM gitlab_project_issues WHERE epic_iid = 10 AND epic_group_id = 123;
+
+-- Count issues by project
+SELECT project_path, COUNT(*) as issue_count
+FROM gitlab_project_issues
+GROUP BY project_path;
+
+-- Find overdue orphan issues
+SELECT * FROM gitlab_project_issues
+WHERE has_epic = 0 AND is_overdue = 1;
+```
 
 ### Stats Command
 
@@ -299,16 +323,26 @@ extractor = HierarchyExtractor(
     db_path='hierarchy.db'
 )
 
-# Extract hierarchy
-result = extractor.extract(
-    group_id=123,
-    epic_iid=10,
+# Extract hierarchy from groups
+result = extractor.extract_from_groups(
+    group_ids=[123, 456],
+    root_group_id=123,
+    root_epic_iid=10,
     include_closed=True,
     max_depth=20,
     verbose=True
 )
 
 print(f"Extracted {result['total_items']} items")
+
+# Extract all issues from projects
+issues_result = extractor.extract_issues_from_groups(
+    group_ids=[123, 456],
+    include_closed=True,
+    verbose=True
+)
+
+print(f"Extracted {issues_result['total_issues']} issues ({issues_result['orphan_count']} orphans)")
 
 # Get statistics
 stats = extractor.get_stats()

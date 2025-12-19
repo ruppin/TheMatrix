@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import json
 
-from .models import SCHEMA_SQL, INDEXES_SQL
+from .models import SCHEMA_SQL, INDEXES_SQL, PROJECT_ISSUES_SCHEMA_SQL, PROJECT_ISSUES_INDEXES_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +43,18 @@ class Database:
 
         cursor = self.conn.cursor()
 
-        # Create table
+        # Create hierarchy table
         cursor.execute(SCHEMA_SQL)
 
-        # Create indexes
+        # Create hierarchy indexes
         for index_sql in INDEXES_SQL:
+            cursor.execute(index_sql)
+
+        # Create project issues table
+        cursor.execute(PROJECT_ISSUES_SCHEMA_SQL)
+
+        # Create project issues indexes
+        for index_sql in PROJECT_ISSUES_INDEXES_SQL:
             cursor.execute(index_sql)
 
         self.conn.commit()
@@ -111,6 +118,75 @@ class Database:
             self.insert_item(item, snapshot_date)
 
         logger.info(f"Batch insert completed: {len(items)} items")
+
+    def insert_project_issue(self, issue: Dict[str, Any], snapshot_date: Optional[date] = None):
+        """
+        Insert a single project issue into the gitlab_project_issues table.
+
+        Args:
+            issue: Dictionary containing issue data
+            snapshot_date: Date of snapshot (defaults to today)
+        """
+        if snapshot_date is None:
+            snapshot_date = date.today()
+
+        # Add snapshot date and version info
+        issue['snapshot_date'] = snapshot_date.isoformat()
+        issue['is_latest'] = 1
+
+        # Set derived flags
+        issue['has_epic'] = 1 if issue.get('epic_id') else 0
+        issue['has_milestone'] = 1 if issue.get('milestone_id') else 0
+        issue['has_assignee'] = 1 if issue.get('assignee_username') else 0
+
+        # Generate epic reference if epic info is available
+        if issue.get('epic_iid') and issue.get('epic_group_id'):
+            issue['epic_reference'] = f"epic:{issue['epic_group_id']}#{issue['epic_iid']}"
+        else:
+            issue['epic_reference'] = None
+
+        # Convert lists/dicts to JSON strings
+        for field in ['labels_raw', 'reference_links', 'task_completion_status']:
+            if field in issue and isinstance(issue[field], (list, dict)):
+                issue[field] = json.dumps(issue[field])
+
+        # Remove fields that are not in the database schema
+        fields_to_exclude = ['internal_id']
+        issue_filtered = {k: v for k, v in issue.items() if k not in fields_to_exclude}
+
+        # Build INSERT statement
+        columns = list(issue_filtered.keys())
+        placeholders = ','.join(['?' for _ in columns])
+        column_names = ','.join(columns)
+
+        sql = f"""
+            INSERT OR REPLACE INTO gitlab_project_issues ({column_names})
+            VALUES ({placeholders})
+        """
+
+        cursor = self.conn.cursor()
+        cursor.execute(sql, [issue_filtered[col] for col in columns])
+        self.conn.commit()
+
+        logger.debug(f"Inserted project issue: {issue.get('id')}")
+
+    def insert_project_issues_batch(self, issues: List[Dict[str, Any]], snapshot_date: Optional[date] = None):
+        """
+        Insert multiple project issues in a batch.
+
+        Args:
+            issues: List of issue dictionaries
+            snapshot_date: Date of snapshot (defaults to today)
+        """
+        if not issues:
+            return
+
+        logger.info(f"Batch inserting {len(issues)} project issues")
+
+        for issue in issues:
+            self.insert_project_issue(issue, snapshot_date)
+
+        logger.info(f"Batch insert completed: {len(issues)} project issues")
 
     def mark_old_snapshots_not_latest(self, item_id: str):
         """
