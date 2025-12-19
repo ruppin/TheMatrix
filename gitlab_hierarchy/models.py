@@ -170,6 +170,7 @@ PROJECT_ISSUES_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS gitlab_project_issues (
     -- Identity Fields
     id TEXT PRIMARY KEY,
+    type TEXT NOT NULL DEFAULT 'issue',
     iid INTEGER NOT NULL,
     project_id INTEGER NOT NULL,
     group_id INTEGER,

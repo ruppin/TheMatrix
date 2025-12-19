@@ -439,8 +439,8 @@ class GitLabClient:
             'web_url': issue.web_url,
             'author_username': getattr(issue.author, 'username', None) if hasattr(issue, 'author') else None,
             'author_name': getattr(issue.author, 'name', None) if hasattr(issue, 'author') else None,
-            'assignee_username': getattr(issue, 'assignee', {}).get('username') if hasattr(issue, 'assignee') and issue.assignee else None,
-            'assignee_name': getattr(issue, 'assignee', {}).get('name') if hasattr(issue, 'assignee') and issue.assignee else None,
+            'assignee_username': getattr(issue.assignee, 'username', None) if hasattr(issue, 'assignee') and issue.assignee else None,
+            'assignee_name': getattr(issue.assignee, 'name', None) if hasattr(issue, 'assignee') and issue.assignee else None,
             'milestone_title': getattr(issue.milestone, 'title', None) if hasattr(issue, 'milestone') and issue.milestone else None,
             'milestone_id': getattr(issue.milestone, 'id', None) if hasattr(issue, 'milestone') and issue.milestone else None,
             'issue_type': getattr(issue, 'issue_type', 'issue'),
@@ -448,8 +448,8 @@ class GitLabClient:
             'discussion_locked': getattr(issue, 'discussion_locked', False),
             'weight': getattr(issue, 'weight', None),
             'story_points': getattr(issue, 'weight', None),  # Alias
-            'time_estimate': getattr(issue, 'time_stats', {}).get('time_estimate', 0) if hasattr(issue, 'time_stats') else 0,
-            'time_spent': getattr(issue, 'time_stats', {}).get('total_time_spent', 0) if hasattr(issue, 'time_stats') else 0,
+            'time_estimate': getattr(getattr(issue, 'time_stats', None), 'time_estimate', 0) if hasattr(issue, 'time_stats') and issue.time_stats else 0,
+            'time_spent': getattr(getattr(issue, 'time_stats', None), 'total_time_spent', 0) if hasattr(issue, 'time_stats') and issue.time_stats else 0,
             'severity': getattr(issue, 'severity', None),
             'created_at': issue.created_at,
             'updated_at': issue.updated_at,
@@ -461,5 +461,5 @@ class GitLabClient:
             'user_notes_count': getattr(issue, 'user_notes_count', 0),
             'merge_requests_count': getattr(issue, 'merge_requests_count', 0),
             'has_tasks': getattr(issue, 'has_tasks', False),
-            'task_completion_status': getattr(issue, 'task_completion_status', {}).get('completed_count', 0) if hasattr(issue, 'task_completion_status') else None,
+            'task_completion_status': getattr(getattr(issue, 'task_completion_status', None), 'completed_count', 0) if hasattr(issue, 'task_completion_status') and issue.task_completion_status else None,
         }
